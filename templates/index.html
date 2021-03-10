@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block styles %}
+  {{super()}}
+  <link rel="stylesheet" href="{{url_for('.static', filename='vue.css')}}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.0/font/bootstrap-icons.css">
+{% endblock %}
+{% block title %}基金{% endblock %}
+{% block content %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/3.1.1/socket.io.js" integrity="sha512-oFOCo2/3DtjrJG4N27BjSLQWoiBv171sK6a+JiWjp/7agxC2nCUP358AqzxkBUb5jX8g6CYLPdSKQTbC0weCwA==" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+<div id = 'app' class="container">
+<transition name="slide-fade">
+  <table v-show = 'zs_show' class="table table-borderless text-center">
+    <thead>
+      <tr class="row">
+        <th v-for='zs_name in zs_names' class="col-4">[[zs_name]]</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="row">
+        <td class="col-4" v-for='zs_value in zs_values'>
+          <span v-bind:style="{background:bg[zs_value.bh]}">[[twoNumber(zs_value.f43/100)]]</span>
+          <span v-if= 'zs_value.f169/100 >= 0' class="badge badge-danger">+[[twoNumber(zs_value.f170/100)]]%</span>
+          <span v-else= 'zs_value.f169/100 < 0' class="badge badge-success">[[twoNumber(zs_value.f170/100)]]%</span>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</transition>
+  <table v-show ='jj_show' class="table table-hover table-striped text-center">
+    <thead>
+      <tr> 
+        <th class="text-center" @click="sort('fundcode')">基金
+          <i class="bi bi-sort-down" v-bind:class="checkActive('fundcode')"></i>
+        </th>
+        <th class="text-center" @click="sort('gszzl')">估值
+          <i class="bi bi-sort-down" v-bind:class="checkActive('gszzl')"></i>
+        </th>
+        <th class="text-center" @click="sort('zzl')">净值
+          <i class="bi bi-sort-down" v-bind:class="checkActive('zzl')"></i><small class="text-muted">[[jj_date]]</small>
+        </th>
+      </tr>
+    </thead>
+    <transition-group name='slide-fade' tag="td">
+      <tbody name = 'slide-fade' is="transition-group">
+        <tr v-for="jj in jj_values" v-bind:key="jj.fundcode" >
+          <td class="align-middle">[[jj.name]]<br /><span class="text-muted">[[jj.fundcode]]</span></td>
+          <td v-if='jj.gszzl > 0' class="align-middle" >
+            <span v-bind:style="{background:bg[jj.bh]}"> [[jj.gsz]]</span><br />
+            <span class="text-danger"> [[ jj.gszzl ]]%</span>
+          </td>
+          <td v-else class="align-middle"><span v-bind:style="{background:bg[jj.bh]}">[[jj.gsz]]</span><br /><span class="text-success">[[ jj.gszzl ]]%</span> </td>
+          <td v-if ='jj.zzl >= 0' class="align-middle">
+            <span>[[jj.dwjz]]</span><br />
+            <span class="text-danger">[[twoNumber(jj.zzl)]]%</span>
+            <small v-show="checkShow(jj.jzrq)" class="text-muted">[[jj.jzrq]]</small>
+          </td>
+          <td v-else-if ='jj.zzl < 0' class="align-middle">
+            <span>[[jj.dwjz]]</span><br />
+            <span class="text-success">[[twoNumber(jj.zzl)]]%</span>
+            <small v-show="checkShow(jj.jzrq)" class="text-muted">[[jj.jzrq]]</small>
+          </td>
+          <td v-else class="align-middle">
+            <span>[[jj.dwjz]]</span><br />
+            <span>[[twoNumber(jj.zzl)]]</span>
+            <small v-show="checkShow(jj.jzrq)" class="text-muted">[[jj.jzrq]]</small>
+          </td>
+        </tr>
+      </tbody>
+    </transition-group>
+  </table>
+  <div v-show='!jj_show' class="text-center">
+    <div class="spinner-border text-primary" role="status">
+      <span class="sr-only">Loading...</span>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{super()}}
+<script type="text/javascript" charset="utf-8">
+  var vue = new Vue({
+    el:'#app',
+    delimiters: ['[[',']]'],
+    data:{
+      zs_names:['上证指数','深证成指','创业板指'],
+      zs_values:[],
+      jj_values:[],
+      jj_date:'',
+      zs_show: false,
+      jj_show: false,
+      sortType:'gszzl',
+      bg: {
+        '0': "rgba(255,255,255,0)",
+        '1': "rgb(255, 226, 226)",
+        '-1': "rgb(183,244,194)",
+        },
+    },
+    methods: {
+      sort(type) {
+        this.sortType = type;
+        this.jj_values = this.jj_values.sort(this.compare(type));
+      },
+      compare(attr) {
+        return function(a,b){
+        var val1 = a[attr];
+        var val2 = b[attr];
+        return val2 - val1;
+        }
+      },
+      twoNumber(val) {      
+        return val.toFixed(2);
+      },
+      checkActive(val){
+        if (this.sortType == val){
+          return "text-primary"
+        }
+      },
+      checkShow(val){
+        if (this.jj_date == val){
+          return false
+        } else {
+          return true
+        }
+      }
+    },
+    created() {
+      var socket = io();
+      socket.on('connect', function() {
+        socket.emit('zs_socket', data = 'String get zs info');
+        socket.emit('jj_socket', data = 'String get jj info');
+      });
+      socket.on('zs', (zs)  => {
+        this.zs_values = zs;
+        this.zs_show = true;
+      });
+      socket.on('jj', (jj)  => {
+        this.jj_values = jj[0];
+        this.jj_date =jj[1];
+        this.sort(this.sortType);
+        this.jj_show = true;
+      })
+    }
+  });
+</script> 
+{% endblock %}

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>基金估值</title>
+  {{ bootstrap.load_css() }}
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/3.1.1/socket.io.js" integrity="sha512-oFOCo2/3DtjrJG4N27BjSLQWoiBv171sK6a+JiWjp/7agxC2nCUP358AqzxkBUb5jX8g6CYLPdSKQTbC0weCwA==" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+  <style>
+    /* 可以设置不同的进入和离开动画 */
+    /* 设置持续时间和动画函数 */
+    .fade-enter-active, .fade-leave-active {
+        transition: opacity 2s
+    }
+    .fade-enter, .fade-leave-to /* .fade-leave-active, 2.1.8 版本以下 */ {
+        opacity: 0
+    }
+  </style>
+ </head>
+<body>
+  <div id = 'app' class="container">
+    <transition name="fade">
+    <table v-show = 'show' class="table table-hover table-borderless text-center">
+      <thead>
+        <tr>
+          <th v-for='zs_name in zs_names' class="text-center"> [[ zs_name ]] </th>
+        </tr>
+      </thead>
+      <tr>
+          <td v-for='zs_value in zs_values' class="align-middle">
+            <span v-if= 'zs_value.f169/100 >= 0' class="text-danger">[[ zs_value.f43/100 ]] <span class="badge badge-danger">↑</span><br/>+[[ zs_value.f169/100 ]] +[[ zs_value.f170/100 ]]%</span>
+            <span v-else class="text-success">[[ zs_value.f43/100 ]] <span class="badge badge-success">↑</span><br/>+[[ zs_value.f169/100 ]] +[[ zs_value.f170/100 ]]%</span>
+          </td>
+      </tr>
+    </table>
+    </transition>
+    <table v-show ='show' class="table table-hover table-striped text-center">
+      <thead>
+        <tr> 
+          <th  @click="sort('fundcode')" class="text-center" data-sortable="true">基金</th>
+          <th  @click="sort('gszzl')" class="text-center" data-sortable="true">估值</th>
+          <th  @click="sort('zzl')" class="text-center" data-sortable="true">昨天净值</th>
+        </tr>
+      </thead>
+      <tr v-for="jj in jj_values" >
+        <td class="align-middle">[[jj.name]]<br /><span class="text-muted">[[jj.fundcode]]</span></td>
+        <td v-if='jj.gszzl > 0' class="align-middle"><span class="text-danger">[[ jj.gszzl ]]%</span> </td>
+        <td v-else class="align-middle"><span class="text-success">[[ jj.gszzl ]]%</span> </td>
+        <td v-if ='jj.zzl >= 0' class="align-middle"><span class="text-danger">[[ jj.zzl ]]%</span> </td>
+        <td v-else-if ='jj.zzl < 0' class="align-middle"><span class="text-success">[[ jj.zzl ]]%</span> </td>
+        <td v-else class="align-middle"><span>[[ jj.zzl ]]</span> </td>
+      </tr>
+    </table>
+  </div>
+  <script type="text/javascript" charset="utf-8">
+    let vue = new Vue({
+      el:'#app',
+      delimiters: ['[[',']]'],
+      data:{
+        zs_names:['上证指数','深证成指','创业板指'],
+        zs_values:[],
+        jj_names:['基金','估值','昨日净值'],
+        jj_values:[],
+        show: false,
+        sortType:'gszzl'
+      },
+      methods: {
+        sort(type) {
+          this.sortType = type;
+          this.jj_values.sort(this.compare(type));
+        },
+        compare(attr) {
+          return function(a,b){
+          var val1 = a[attr];
+          var val2 = b[attr];
+          return val2 - val1;
+          }
+        },
+      },
+      created() {
+        var socket = io();
+        socket.on('connect', function() {
+          socket.emit('my event', data = 'I\'m connected!');
+        });
+        socket.on('zs', (zs,jj)  => {
+          this.zs_values = zs;
+          this.jj_values = jj;
+          this.sort(this.sortType);
+          this.show = true
+          // console.log(this.zs_values);
+          // console.log(this.jj_values);
+        });
+      }
+    });
+  </script> 
+  {{ bootstrap.load_js() }}
+</body>
+</html>
